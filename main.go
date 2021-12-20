@@ -81,8 +81,6 @@ func main() {
 }
 
 func checkArgs(_ *v2.Event) (int, error) {
-	fmt.Printf("%+v", plugin)
-
 	return sensu.CheckStateOK, nil
 }
 
