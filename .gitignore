@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+.network-interface-checks.json
 network-interface-checks
 
 # IntelliJ
