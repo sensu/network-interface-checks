@@ -4,7 +4,7 @@ import (
 	"fmt"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/log"
-	"github.com/sensu/network-interface-checks/cache"
+	"github.com/sensu/network-interface-checks/metric"
 	"os"
 	"time"
 )
@@ -34,19 +34,19 @@ var (
 
 type MetricCollector struct {
 	selector  *selector
-	cacheFile string
+	stateFile string
 }
 
 // NetStats is the following: map[metric-name]map[interface-name]value
 type NetStats map[string]map[string]float64
 
-func NewCollector(includes, excludes []string, cacheFile string) (*MetricCollector, error) {
+func NewCollector(includes, excludes []string, stateFile string) (*MetricCollector, error) {
 	selector, err := NewDeviceSelector(includes, excludes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &MetricCollector{selector, cacheFile}, nil
+	return &MetricCollector{selector, stateFile}, nil
 }
 
 func (c *MetricCollector) Collect(sum bool, netStatsGetter func(*selector) (NetStats, error)) ([]*dto.MetricFamily, error) {
@@ -55,28 +55,31 @@ func (c *MetricCollector) Collect(sum bool, netStatsGetter func(*selector) (NetS
 		return nil, fmt.Errorf("couldn't get netstats: %w", err)
 	}
 
-	metricCache, err := cache.NewFromFile(c.cacheFile)
+	metricCache, err := metric.NewFromFile(c.stateFile)
 	if err != nil {
-		log.Warnf("error opening cache file %s, continuing without rate metrics", cacheFile)
+		log.Warnf("error opening metric file %s, continuing without rate metrics", c.stateFile)
 	}
 
 	families := generatePromMetrics(stats, metricCache, sum)
 
-	outFile, err := os.OpenFile(c.cacheFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Warnf("error writing cache file %s: %v", cacheFile, err)
-		return families, err
-	}
-	defer func() { _ = outFile.Close() }()
-	err = metricCache.Write(outFile)
-	if err != nil {
-		return families, err
+	// write metric cache file only if specified
+	if c.stateFile != "" {
+		outFile, err := os.OpenFile(c.stateFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			log.Warnf("error opening metric cache file %s for writing: %v", c.stateFile, err)
+			return nil, err
+		}
+		defer func() { _ = outFile.Close() }()
+		err = metricCache.Write(outFile)
+		if err != nil {
+			return nil, fmt.Errorf("error writing metric cache file %s: %v", c.stateFile, err)
+		}
 	}
 
 	return families, nil
 }
 
-func generatePromMetrics(stats NetStats, metricCache *cache.CounterMetricCache, sum bool) []*dto.MetricFamily {
+func generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache, sum bool) []*dto.MetricFamily {
 	families := make([]*dto.MetricFamily, 0)
 	nowMS := time.Now().UnixMilli()
 
@@ -100,9 +103,9 @@ func generatePromMetrics(stats NetStats, metricCache *cache.CounterMetricCache, 
 		hasRate := false
 
 		for netIF, ifValue := range typeStats {
-			metric := newCounterMetric(family, netIF, ifValue, nowMS)
-			found, prevValue, prevTimestampMS := metricCache.GetMetric(family, metric)
-			metricCache.AddMetric(family, metric)
+			counter := newCounterMetric(family, netIF, ifValue, nowMS)
+			found, prevValue, prevTimestampMS := metricCache.GetMetric(family, counter)
+			metricCache.AddMetric(family, counter)
 			total += ifValue
 
 			if found {
@@ -138,27 +141,27 @@ func newMetricFamily(name, help string, metricType dto.MetricType) *dto.MetricFa
 }
 
 func newCounterMetric(family *dto.MetricFamily, ifName string, value float64, timestampMS int64) *dto.Metric {
-	metric := &dto.Metric{
+	counter := &dto.Metric{
 		Label: []*dto.LabelPair{{Name: &interfaceLabel, Value: &ifName}},
 		Counter: &dto.Counter{
 			Value: &value,
 		},
 		TimestampMs: &timestampMS,
 	}
-	family.Metric = append(family.Metric, metric)
+	family.Metric = append(family.Metric, counter)
 
-	return metric
+	return counter
 }
 
 func newGaugeMetric(family *dto.MetricFamily, ifName string, value float64, timestampMS int64) *dto.Metric {
-	metric := &dto.Metric{
+	gauge := &dto.Metric{
 		Label: []*dto.LabelPair{{Name: &interfaceLabel, Value: &ifName}},
 		Gauge: &dto.Gauge{
 			Value: &value,
 		},
 		TimestampMs: &timestampMS,
 	}
-	family.Metric = append(family.Metric, metric)
+	family.Metric = append(family.Metric, gauge)
 
-	return metric
+	return gauge
 }

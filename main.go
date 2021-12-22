@@ -15,14 +15,12 @@ import (
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
-	Sum               bool
-	IncludeInterfaces []string
-	ExcludeInterfaces []string
+	Sum                    bool
+	IncludeInterfaces      []string
+	ExcludeInterfaces      []string
+	StateFile              string
+	MaxRateIntervalSeconds int
 }
-
-const (
-	cacheFile = "./.network-interface-check.json"
-)
 
 var (
 	plugin = Config{
@@ -31,8 +29,10 @@ var (
 			Short:    "Network Interface Checks",
 			Keyspace: "sensu.io/plugins/network-interface-checks/config",
 		},
-		IncludeInterfaces: make([]string, 0),
-		ExcludeInterfaces: make([]string, 0),
+		IncludeInterfaces:      make([]string, 0),
+		ExcludeInterfaces:      make([]string, 0),
+		StateFile:              "",
+		MaxRateIntervalSeconds: 60,
 	}
 
 	options = []*sensu.PluginConfigOption{
@@ -60,6 +60,22 @@ var (
 			Default:   []string{getLocalInterfaceName()},
 			Usage:     "Comma-delimited string of interface names to exclude",
 			Value:     &plugin.ExcludeInterfaces,
+		}, {
+			Path:      "state-file",
+			Env:       "NETWORK_INTERFACE_CHECKS_STATE_FILE",
+			Argument:  "state-file",
+			Shorthand: "f",
+			Default:   "",
+			Usage:     "State file used for rate calculation. If empty no rate is calculated.",
+			Value:     &plugin.StateFile,
+		}, {
+			Path:      "max-rate-interval",
+			Env:       "NETWORK_INTERFACE_CHECKS_MAX_RATE_INTERVAL",
+			Argument:  "max-rate-interval",
+			Shorthand: "r",
+			Default:   60,
+			Usage:     "Number of seconds since last measurement that triggers a rate calculation.",
+			Value:     &plugin.MaxRateIntervalSeconds,
 		},
 	}
 )
@@ -101,7 +117,7 @@ func checkArgs(_ *v2.Event) (int, error) {
 }
 
 func collectMetrics() ([]*dto.MetricFamily, error) {
-	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, cacheFile)
+	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, plugin.StateFile)
 	if err != nil {
 		return nil, err
 	}

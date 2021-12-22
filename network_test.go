@@ -104,6 +104,38 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	}
 }
 
+func TestCollect_NoFile(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
+
+	// No rates since it's first time writing to file
+	collector, err := NewCollector([]string{}, []string{}, tmpFile)
+	assert.NoError(t, err)
+	families, err := collector.Collect(false, GetNetStatsMock1)
+	assert.NoError(t, err)
+	assert.NotNil(t, families)
+	assert.Len(t, families, 2)
+	familyMap := familiesByName(families)
+	assert.Contains(t, familyMap, "bytes_sent")
+	assert.Contains(t, familyMap, "err_in")
+	for _, family := range families {
+		assert.Len(t, family.Metric, 2)
+		assert.False(t, hasSumMetric(family))
+	}
+
+	// Second run with no file there will be no rates
+	collector, err = NewCollector([]string{}, []string{}, "")
+	assert.NoError(t, err)
+	families, err = collector.Collect(false, GetNetStatsMock2)
+	assert.NoError(t, err)
+	assert.NotNil(t, families)
+	assert.Len(t, families, 2)
+	familyMap = familiesByName(families)
+	assert.Contains(t, familyMap, "bytes_sent")
+	assert.NotContains(t, familyMap, "bytes_sent_rate")
+	assert.Contains(t, familyMap, "err_in")
+	assert.NotContains(t, familyMap, "err_in_rate")
+}
+
 func familiesByName(families []*dto.MetricFamily) map[string]*dto.MetricFamily {
 	familyMap := map[string]*dto.MetricFamily{}
 	for _, family := range families {

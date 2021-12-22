@@ -1,4 +1,4 @@
-package cache
+package metric
 
 import (
 	"encoding/json"
@@ -26,13 +26,16 @@ func New() *CounterMetricCache {
 	}
 }
 
-// NewFromFile creates a new cache and populates it with the content of the specified JSON file.
+// NewFromFile creates a new metric cache and populates it with the content of the specified JSON file.
 func NewFromFile(filename string) (*CounterMetricCache, error) {
 	metricCache := New()
+	if filename == "" {
+		return metricCache, nil
+	}
 
 	info, err := os.Stat(filename)
 	if (err != nil && !errors.Is(err, os.ErrNotExist)) || (info != nil && info.IsDir()) {
-		return metricCache, fmt.Errorf("unable to use cache file %s", filename)
+		return nil, fmt.Errorf("unable to use metric file %s", filename)
 	}
 
 	file, err := os.Open(filename)
@@ -44,7 +47,7 @@ func NewFromFile(filename string) (*CounterMetricCache, error) {
 
 	err = metricCache.Read(file)
 	if err != nil {
-		return nil, fmt.Errorf("error reading cache file %s: %v", filename, err)
+		return nil, fmt.Errorf("error reading metric file %s: %v", filename, err)
 	}
 
 	return metricCache, nil
@@ -84,11 +87,11 @@ func (s *CounterMetricCache) Write(writer io.Writer) error {
 func (s *CounterMetricCache) Read(reader io.Reader) error {
 	content, err := ioutil.ReadAll(reader)
 	if err != nil {
-		return fmt.Errorf("error reading cache content: %v", err)
+		return fmt.Errorf("error reading metric cache content: %v", err)
 	}
 	err = json.Unmarshal(content, &s.metrics)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling json cache content: %v", err)
+		return fmt.Errorf("error unmarshalling json metric cache content: %v", err)
 	}
 	return nil
 }
