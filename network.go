@@ -59,7 +59,7 @@ func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, erro
 
 	metricState, err := metric.NewFromFile(c.stateFile)
 	if err != nil {
-		log.Warnf("error opening metric file %s, continuing without rate metrics", c.stateFile)
+		return nil, fmt.Errorf("error opening metric file %s", c.stateFile)
 	}
 
 	families := c.generatePromMetrics(stats, metricState)

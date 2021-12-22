@@ -131,9 +131,18 @@ func collectMetrics() ([]*dto.MetricFamily, error) {
 }
 
 func executeCheck(_ *v2.Event) (int, error) {
+	err := generateMetrics()
+	if err != nil {
+		fmt.Printf("Error executing %s: %v\n", plugin.Name, err)
+		return sensu.CheckStateCritical, nil
+	}
+	return sensu.CheckStateOK, nil
+}
+
+func generateMetrics() error {
 	families, err := collectMetrics()
 	if err != nil {
-		return sensu.CheckStateCritical, err
+		return err
 	}
 
 	var buf bytes.Buffer
@@ -142,12 +151,13 @@ func executeCheck(_ *v2.Event) (int, error) {
 		encoder := expfmt.NewEncoder(&buf, expfmt.FmtText)
 		err = encoder.Encode(family)
 		if err != nil {
-			return sensu.CheckStateCritical, err
+			return err
 		}
 
 		fmt.Print(buf.String())
 	}
-	return sensu.CheckStateOK, nil
+
+	return nil
 }
 
 func localInterfaceOnly(ifs []string) bool {
