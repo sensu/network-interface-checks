@@ -9,6 +9,7 @@ import (
 	"github.com/sensu/sensu-plugin-sdk/sensu"
 	"log"
 	"os"
+	"strings"
 )
 
 // Config represents the check plugin config.
@@ -56,7 +57,7 @@ var (
 			Env:       "NETWORK_INTERFACE_CHECKS_EXCLUDE_INTERFACES",
 			Argument:  "exclude-interfaces",
 			Shorthand: "x",
-			Default:   []string{"lo"},
+			Default:   []string{getLocalInterfaceName()},
 			Usage:     "Comma-delimited string of interface names to exclude",
 			Value:     &plugin.ExcludeInterfaces,
 		},
@@ -81,6 +82,21 @@ func main() {
 }
 
 func checkArgs(_ *v2.Event) (int, error) {
+	for i, include := range plugin.IncludeInterfaces {
+		plugin.IncludeInterfaces[i] = strings.TrimSpace(include)
+	}
+	for i, exclude := range plugin.ExcludeInterfaces {
+		plugin.ExcludeInterfaces[i] = strings.TrimSpace(exclude)
+	}
+
+	if len(plugin.IncludeInterfaces) > 0 && localInterfaceOnly(plugin.ExcludeInterfaces) {
+		plugin.ExcludeInterfaces = []string{}
+	}
+
+	if len(plugin.IncludeInterfaces) > 0 && len(plugin.ExcludeInterfaces) > 0 && !localInterfaceOnly(plugin.ExcludeInterfaces) {
+		return sensu.CheckStateCritical, fmt.Errorf("only one of --include-interfaces or --exclude-interfaces should be specified")
+	}
+
 	return sensu.CheckStateOK, nil
 }
 
@@ -111,4 +127,8 @@ func executeCheck(_ *v2.Event) (int, error) {
 		fmt.Print(buf.String())
 	}
 	return sensu.CheckStateOK, nil
+}
+
+func localInterfaceOnly(ifs []string) bool {
+	return len(ifs) == 1 && ifs[0] == getLocalInterfaceName()
 }
