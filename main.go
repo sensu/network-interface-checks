@@ -19,7 +19,7 @@ type Config struct {
 	IncludeInterfaces      []string
 	ExcludeInterfaces      []string
 	StateFile              string
-	MaxRateIntervalSeconds int
+	MaxRateIntervalSeconds int64
 }
 
 var (
@@ -73,8 +73,8 @@ var (
 			Env:       "NETWORK_INTERFACE_CHECKS_MAX_RATE_INTERVAL",
 			Argument:  "max-rate-interval",
 			Shorthand: "r",
-			Default:   60,
-			Usage:     "Number of seconds since last measurement that triggers a rate calculation.",
+			Default:   int64(60),
+			Usage:     "Maximum number of seconds since last measurement that triggers a rate calculation. 0 for no maximum.",
 			Value:     &plugin.MaxRateIntervalSeconds,
 		},
 	}
@@ -113,16 +113,21 @@ func checkArgs(_ *v2.Event) (int, error) {
 		return sensu.CheckStateCritical, fmt.Errorf("only one of --include-interfaces or --exclude-interfaces should be specified")
 	}
 
+	if plugin.MaxRateIntervalSeconds < 0 {
+		return sensu.CheckStateCritical, fmt.Errorf("--max-rate-interval must be 0 or a positive value")
+	}
+
 	return sensu.CheckStateOK, nil
 }
 
 func collectMetrics() ([]*dto.MetricFamily, error) {
-	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, plugin.StateFile)
+	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, plugin.Sum, plugin.StateFile,
+		plugin.MaxRateIntervalSeconds)
 	if err != nil {
 		return nil, err
 	}
 
-	return collector.Collect(plugin.Sum, GetNetStats)
+	return collector.Collect(GetNetStats)
 }
 
 func executeCheck(_ *v2.Event) (int, error) {

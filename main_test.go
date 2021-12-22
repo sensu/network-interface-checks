@@ -8,13 +8,14 @@ import (
 
 func TestCheckArgs(t *testing.T) {
 	testCases := []struct {
-		name             string
-		includesIn       []string
-		excludesIn       []string
-		expectedStatus   int
-		expectedError    bool
-		expectedIncludes []string
-		expectedExcludes []string
+		name              string
+		includesIn        []string
+		excludesIn        []string
+		maxRateIntervalIn int64
+		expectedStatus    int
+		expectedError     bool
+		expectedIncludes  []string
+		expectedExcludes  []string
 	}{
 		{
 			name:             "empty includes and excludes",
@@ -72,16 +73,44 @@ func TestCheckArgs(t *testing.T) {
 			expectedError:    true,
 			expectedIncludes: nil,
 			expectedExcludes: nil,
+		}, {
+			name:              "max rate interval 0",
+			includesIn:        []string{},
+			excludesIn:        []string{},
+			maxRateIntervalIn: 0,
+			expectedStatus:    sensu.CheckStateOK,
+			expectedError:     false,
+			expectedIncludes:  []string{},
+			expectedExcludes:  []string{},
+		}, {
+			name:              "max rate interval positive",
+			includesIn:        []string{},
+			excludesIn:        []string{},
+			maxRateIntervalIn: 10,
+			expectedStatus:    sensu.CheckStateOK,
+			expectedError:     false,
+			expectedIncludes:  []string{},
+			expectedExcludes:  []string{},
+		}, {
+			name:              "max rate interval negative",
+			includesIn:        []string{},
+			excludesIn:        []string{},
+			maxRateIntervalIn: -10,
+			expectedStatus:    sensu.CheckStateCritical,
+			expectedError:     true,
+			expectedIncludes:  []string{},
+			expectedExcludes:  []string{},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			plugin = Config{
-				PluginConfig:      sensu.PluginConfig{},
-				Sum:               false,
-				IncludeInterfaces: testCase.includesIn,
-				ExcludeInterfaces: testCase.excludesIn,
+				PluginConfig:           sensu.PluginConfig{},
+				Sum:                    false,
+				IncludeInterfaces:      testCase.includesIn,
+				ExcludeInterfaces:      testCase.excludesIn,
+				MaxRateIntervalSeconds: testCase.maxRateIntervalIn,
 			}
 
 			status, err := checkArgs(nil)

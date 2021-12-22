@@ -33,23 +33,25 @@ var (
 )
 
 type MetricCollector struct {
-	selector  *selector
-	stateFile string
+	selector               *selector
+	sum                    bool
+	stateFile              string
+	maxRateIntervalSeconds int64
 }
 
 // NetStats is the following: map[metric-name]map[interface-name]value
 type NetStats map[string]map[string]float64
 
-func NewCollector(includes, excludes []string, stateFile string) (*MetricCollector, error) {
+func NewCollector(includes, excludes []string, sum bool, stateFile string, maxRateIntervalSeconds int64) (*MetricCollector, error) {
 	selector, err := NewDeviceSelector(includes, excludes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &MetricCollector{selector, stateFile}, nil
+	return &MetricCollector{selector, sum, stateFile, maxRateIntervalSeconds}, nil
 }
 
-func (c *MetricCollector) Collect(sum bool, netStatsGetter func(*selector) (NetStats, error)) ([]*dto.MetricFamily, error) {
+func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, error)) ([]*dto.MetricFamily, error) {
 	stats, err := netStatsGetter(c.selector)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get netstats: %w", err)
@@ -60,7 +62,7 @@ func (c *MetricCollector) Collect(sum bool, netStatsGetter func(*selector) (NetS
 		log.Warnf("error opening metric file %s, continuing without rate metrics", c.stateFile)
 	}
 
-	families := generatePromMetrics(stats, metricCache, sum)
+	families := c.generatePromMetrics(stats, metricCache)
 
 	// write metric cache file only if specified
 	if c.stateFile != "" {
@@ -79,7 +81,7 @@ func (c *MetricCollector) Collect(sum bool, netStatsGetter func(*selector) (NetS
 	return families, nil
 }
 
-func generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache, sum bool) []*dto.MetricFamily {
+func (c *MetricCollector) generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache) []*dto.MetricFamily {
 	families := make([]*dto.MetricFamily, 0)
 	nowMS := time.Now().UnixMilli()
 
@@ -109,10 +111,13 @@ func generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache,
 			total += ifValue
 
 			if found {
-				rate := (ifValue - prevValue) / float64((nowMS-prevTimestampMS)/1000)
-				newGaugeMetric(rateFamily, netIF, rate, nowMS)
-				rateTotal += rate
-				hasRate = true
+				intervalSeconds := (nowMS - prevTimestampMS) / 1000
+				if c.maxRateIntervalSeconds == 0 || intervalSeconds < c.maxRateIntervalSeconds {
+					rate := (ifValue - prevValue) / float64((nowMS-prevTimestampMS)/1000)
+					newGaugeMetric(rateFamily, netIF, rate, nowMS)
+					rateTotal += rate
+					hasRate = true
+				}
 			}
 		}
 
@@ -120,7 +125,7 @@ func generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache,
 			families = append(families, rateFamily)
 		}
 
-		if sum {
+		if c.sum {
 			newCounterMetric(family, "all", total, nowMS)
 			if hasRate {
 				newGaugeMetric(rateFamily, "all", rateTotal, nowMS)
