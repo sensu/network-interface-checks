@@ -57,31 +57,31 @@ func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, erro
 		return nil, fmt.Errorf("couldn't get netstats: %w", err)
 	}
 
-	metricCache, err := metric.NewFromFile(c.stateFile)
+	metricState, err := metric.NewFromFile(c.stateFile)
 	if err != nil {
 		log.Warnf("error opening metric file %s, continuing without rate metrics", c.stateFile)
 	}
 
-	families := c.generatePromMetrics(stats, metricCache)
+	families := c.generatePromMetrics(stats, metricState)
 
-	// write metric cache file only if specified
+	// write metric state file only if specified
 	if c.stateFile != "" {
 		outFile, err := os.OpenFile(c.stateFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
-			log.Warnf("error opening metric cache file %s for writing: %v", c.stateFile, err)
+			log.Warnf("error opening metric state file %s for writing: %v", c.stateFile, err)
 			return nil, err
 		}
 		defer func() { _ = outFile.Close() }()
-		err = metricCache.Write(outFile)
+		err = metricState.Write(outFile)
 		if err != nil {
-			return nil, fmt.Errorf("error writing metric cache file %s: %v", c.stateFile, err)
+			return nil, fmt.Errorf("error writing metric state file %s: %v", c.stateFile, err)
 		}
 	}
 
 	return families, nil
 }
 
-func (c *MetricCollector) generatePromMetrics(stats NetStats, metricCache *metric.CounterMetricCache) []*dto.MetricFamily {
+func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metric.CounterMetricState) []*dto.MetricFamily {
 	families := make([]*dto.MetricFamily, 0)
 	nowMS := time.Now().UnixMilli()
 
@@ -106,8 +106,8 @@ func (c *MetricCollector) generatePromMetrics(stats NetStats, metricCache *metri
 
 		for netIF, ifValue := range typeStats {
 			counter := newCounterMetric(family, netIF, ifValue, nowMS)
-			found, prevValue, prevTimestampMS := metricCache.GetMetric(family, counter)
-			metricCache.AddMetric(family, counter)
+			found, prevValue, prevTimestampMS := metricState.GetMetric(family, counter)
+			metricState.AddMetric(family, counter)
 			total += ifValue
 
 			if found {

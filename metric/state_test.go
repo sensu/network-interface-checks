@@ -11,7 +11,7 @@ import (
 
 const (
 	bufferError = "buffer-error"
-	jsonCache   = `{"my_metric-label1=label1Value":{"value":1234.5678,"timestamp":1639776815123},"my_other_metric-label21=label21Value":{"value":456.789,"timestamp":1639666815456},"my_other_metric-label221=label22Value-label222=label222Value":{"value":987.21,"timestamp":1639666815789}}`
+	jsonState   = `{"my_metric-label1=label1Value":{"value":1234.5678,"timestamp":1639776815123},"my_other_metric-label21=label21Value":{"value":456.789,"timestamp":1639666815456},"my_other_metric-label221=label22Value-label222=label222Value":{"value":987.21,"timestamp":1639666815789}}`
 )
 
 type ErrorReadWriter struct {
@@ -51,7 +51,7 @@ var (
 	metric22LabelValue2 = "label222Value"
 )
 
-func TestCounterMetricCache_AddGetMetric(t *testing.T) {
+func TestCounterMetricState_AddGetMetric(t *testing.T) {
 	family1 := &dto.MetricFamily{
 		Name:   &family1Name,
 		Help:   &family1Help,
@@ -100,17 +100,17 @@ func TestCounterMetricCache_AddGetMetric(t *testing.T) {
 	}
 
 	// AddMetric and GetMetric
-	metricCache := New()
-	metricCache.AddMetric(family1, metric1)
-	metricCache.AddMetric(family2, metric21)
-	metricCache.AddMetric(family2, metric22)
+	metricState := New()
+	metricState.AddMetric(family1, metric1)
+	metricState.AddMetric(family2, metric21)
+	metricState.AddMetric(family2, metric22)
 
-	found, value, timestampMS := metricCache.GetMetric(family1, metric1)
+	found, value, timestampMS := metricState.GetMetric(family1, metric1)
 	assert.True(t, found)
 	assert.Equal(t, metric1Value, value)
 	assert.Equal(t, metric1TimestampMS, timestampMS)
 
-	found, value, timestampMS = metricCache.GetMetric(family2, metric22)
+	found, value, timestampMS = metricState.GetMetric(family2, metric22)
 	assert.True(t, found)
 	assert.Equal(t, metric22Value, value)
 	assert.Equal(t, metric22TimestampMS, timestampMS)
@@ -118,43 +118,43 @@ func TestCounterMetricCache_AddGetMetric(t *testing.T) {
 	// value update
 	metric1.Counter.Value = &metric1NewValue
 	metric1.TimestampMs = &metric1NewTimestampMS
-	metricCache.AddMetric(family1, metric1)
-	found, value, timestampMS = metricCache.GetMetric(family1, metric1)
+	metricState.AddMetric(family1, metric1)
+	found, value, timestampMS = metricState.GetMetric(family1, metric1)
 	assert.True(t, found)
 	assert.Equal(t, metric1NewValue, value)
 	assert.Equal(t, metric1NewTimestampMS, timestampMS)
 
 	// Write
 	buf := new(bytes.Buffer)
-	err := metricCache.Write(buf)
+	err := metricState.Write(buf)
 	assert.NoError(t, err)
 	str := buf.String()
-	assert.Equal(t, jsonCache, str)
+	assert.Equal(t, jsonState, str)
 
 	// Write error
-	err = metricCache.Write(&ErrorReadWriter{})
+	err = metricState.Write(&ErrorReadWriter{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), bufferError)
 
 	// Read - make sure all 3 metrics are there
-	metricCache = New()
-	err = metricCache.Read(strings.NewReader(jsonCache))
+	metricState = New()
+	err = metricState.Read(strings.NewReader(jsonState))
 	assert.NoError(t, err)
-	found, value, timestampMS = metricCache.GetMetric(family1, metric1)
+	found, value, timestampMS = metricState.GetMetric(family1, metric1)
 	assert.True(t, found)
 	assert.Equal(t, metric1NewValue, value)
 	assert.Equal(t, metric1NewTimestampMS, timestampMS)
-	found, value, timestampMS = metricCache.GetMetric(family2, metric21)
+	found, value, timestampMS = metricState.GetMetric(family2, metric21)
 	assert.True(t, found)
 	assert.Equal(t, metric21Value, value)
 	assert.Equal(t, metric21TimestampMS, timestampMS)
-	found, value, timestampMS = metricCache.GetMetric(family2, metric22)
+	found, value, timestampMS = metricState.GetMetric(family2, metric22)
 	assert.True(t, found)
 	assert.Equal(t, metric22Value, value)
 	assert.Equal(t, metric22TimestampMS, timestampMS)
 
 	// Read error
-	err = metricCache.Read(&ErrorReadWriter{})
+	err = metricState.Read(&ErrorReadWriter{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), bufferError)
 }

@@ -16,21 +16,21 @@ type CounterMetric struct {
 	TimestampMS int64   `json:"timestamp"`
 }
 
-type CounterMetricCache struct {
+type CounterMetricState struct {
 	metrics map[string]*CounterMetric
 }
 
-func New() *CounterMetricCache {
-	return &CounterMetricCache{
+func New() *CounterMetricState {
+	return &CounterMetricState{
 		metrics: make(map[string]*CounterMetric),
 	}
 }
 
-// NewFromFile creates a new metric cache and populates it with the content of the specified JSON file.
-func NewFromFile(filename string) (*CounterMetricCache, error) {
-	metricCache := New()
+// NewFromFile creates a new metric state and populates it with the content of the specified JSON file.
+func NewFromFile(filename string) (*CounterMetricState, error) {
+	counterMetricState := New()
 	if filename == "" {
-		return metricCache, nil
+		return counterMetricState, nil
 	}
 
 	info, err := os.Stat(filename)
@@ -41,19 +41,19 @@ func NewFromFile(filename string) (*CounterMetricCache, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		// ignore error, it just means the file doesn't exist
-		return metricCache, nil
+		return counterMetricState, nil
 	}
 	defer func() { _ = file.Close() }()
 
-	err = metricCache.Read(file)
+	err = counterMetricState.Read(file)
 	if err != nil {
 		return nil, fmt.Errorf("error reading metric file %s: %v", filename, err)
 	}
 
-	return metricCache, nil
+	return counterMetricState, nil
 }
 
-func (s *CounterMetricCache) AddMetric(family *dto.MetricFamily, metric *dto.Metric) {
+func (s *CounterMetricState) AddMetric(family *dto.MetricFamily, metric *dto.Metric) {
 	key := getMetricKey(family, metric)
 	s.metrics[key] = &CounterMetric{
 		Value:       metric.GetCounter().GetValue(),
@@ -61,16 +61,16 @@ func (s *CounterMetricCache) AddMetric(family *dto.MetricFamily, metric *dto.Met
 	}
 }
 
-func (s *CounterMetricCache) GetMetric(family *dto.MetricFamily, metric *dto.Metric) (bool, float64, int64) {
+func (s *CounterMetricState) GetMetric(family *dto.MetricFamily, metric *dto.Metric) (bool, float64, int64) {
 	key := getMetricKey(family, metric)
-	cachedMetric := s.metrics[key]
-	if cachedMetric == nil {
+	metricState := s.metrics[key]
+	if metricState == nil {
 		return false, 0, 0
 	}
-	return true, cachedMetric.Value, cachedMetric.TimestampMS
+	return true, metricState.Value, metricState.TimestampMS
 }
 
-func (s *CounterMetricCache) Write(writer io.Writer) error {
+func (s *CounterMetricState) Write(writer io.Writer) error {
 	content, err := json.Marshal(s.metrics)
 	if err != nil {
 		return fmt.Errorf("error creating json document: %v", err)
@@ -84,14 +84,14 @@ func (s *CounterMetricCache) Write(writer io.Writer) error {
 	return nil
 }
 
-func (s *CounterMetricCache) Read(reader io.Reader) error {
+func (s *CounterMetricState) Read(reader io.Reader) error {
 	content, err := ioutil.ReadAll(reader)
 	if err != nil {
-		return fmt.Errorf("error reading metric cache content: %v", err)
+		return fmt.Errorf("error reading metric state content: %v", err)
 	}
 	err = json.Unmarshal(content, &s.metrics)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling json metric cache content: %v", err)
+		return fmt.Errorf("error unmarshalling json metric state content: %v", err)
 	}
 	return nil
 }
