@@ -7,6 +7,7 @@
 ## Table of Contents
 - [Overview](#overview)
   - [Output Metrics](#output-metrics)
+  - [Rate Metrics](#rate-metrics)
 - [Usage examples](#usage-examples)
   - [Help output](#help-output)
   - [Environment variables](#environment-variables)
@@ -42,7 +43,11 @@ The [Sensu Network Interface Checks][1] are Linux [Sensu Metrics Check][7] that 
 | drop_in           | counter | Inbound packets dropped             |
 | drop_in_rate      | gauge   | Inbound packets dropped per second  |
 
+### Rate Metrics
+In order to obtain rate metrics the `--state-file` argument must be used. The state file holds previous values and millisecond accurate timestamp, which are used to calculate metric rate using a simple time difference between current values and previously recorded values in the state file.  By default rate metrics are only calculated if the stored values in the selected state file are less than 60 seconds old. You can optionally set the maximum allowed time interval using `--max-rate-interval` if the 60 second default isn't suitable. 
 
+If the state file does not exist or if the state is too stale, the rate metrics will not be produced. 
+  
 ## Usage examples
 
 ### Help output
@@ -63,7 +68,10 @@ Flags:
   -x, --exclude-interfaces strings   Comma-delimited string of interface names to exclude (default [lo])
   -h, --help                         help for network-interface-checks
   -i, --include-interfaces strings   Comma-delimited string of interface names to include
+  -r, --max-rate-interval int        Maximum number of seconds since last measurement that triggers a rate calculation. 0 for no maximum. (default 60)
+  -f, --state-file string            State file used for rate calculation. If empty no rate is calculated.
   -s, --sum                          Add additional measurement per metric w/ "interface=all" tag
+
 
 Use "network-interface-checks [command] --help" for more information about a command.
 ```
@@ -74,8 +82,8 @@ Use "network-interface-checks [command] --help" for more information about a com
 | --sum                | NETWORK_INTERFACE_CHECKS_SUM                |
 | --include-interfaces | NETWORK_INTERFACE_CHECKS_INCLUDE_INTERFACES |
 | --exclude-interfaces | NETWORK_INTERFACE_CHECKS_EXCLUDE_INTERFACES |
-
-
+| --max-rate-interval  | NETWORK_INTERFACE_CHECKS_MAX_RATE_INTERVAL  |
+| --state-file         | NETWORK_INTERFACE_CHECKS_STATE_FILE         |
 
 ## Configuration
 ### Asset registration
