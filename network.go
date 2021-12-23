@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/log"
 	"github.com/sensu/network-interface-checks/metric"
-	"os"
-	"time"
 )
 
 var (
@@ -111,9 +112,9 @@ func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metri
 			total += ifValue
 
 			if found {
-				intervalSeconds := (nowMS - prevTimestampMS) / 1000
-				if c.maxRateIntervalSeconds == 0 || intervalSeconds < c.maxRateIntervalSeconds {
-					rate := (ifValue - prevValue) / float64((nowMS-prevTimestampMS)/1000)
+				intervalSeconds := float64(nowMS-prevTimestampMS) / 1000.0
+				if intervalSeconds > 0 && (c.maxRateIntervalSeconds == 0 || intervalSeconds < float64(c.maxRateIntervalSeconds)) {
+					rate := float64(ifValue-prevValue) / intervalSeconds
 					newGaugeMetric(rateFamily, netIF, rate, nowMS)
 					rateTotal += rate
 					hasRate = true

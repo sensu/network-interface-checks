@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/google/uuid"
-	dto "github.com/prometheus/client_model/go"
-	"github.com/stretchr/testify/assert"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/assert"
 )
 
 func GetNetStatsMock1(_ *selector) (NetStats, error) {
@@ -35,7 +36,6 @@ func GetNetStatsMock2(_ *selector) (NetStats, error) {
 
 func TestMetricCollector_CollectWithSum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
-
 	// Sum, no rates
 	collector, err := NewCollector([]string{}, []string{}, true, tmpFile, 60)
 	assert.NoError(t, err)
@@ -50,6 +50,9 @@ func TestMetricCollector_CollectWithSum(t *testing.T) {
 		assert.Len(t, family.Metric, 3)
 		assert.True(t, hasSumMetric(family))
 	}
+
+	// small sleep to ensure second call to Collect has different timestamp
+	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
 	collector, err = NewCollector([]string{}, []string{}, true, tmpFile, 60)
@@ -86,6 +89,9 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 		assert.Len(t, family.Metric, 2)
 		assert.False(t, hasSumMetric(family))
 	}
+
+	// small sleep to ensure second call to Collect has different timestamp
+	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
 	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 60)
