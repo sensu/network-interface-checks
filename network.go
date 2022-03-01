@@ -29,8 +29,10 @@ var (
 		"drop_in":           "incoming packets dropped",
 		"drop_in_rate":      "incoming packets dropped per second",
 		"mtu":               "interface MTU configuration",
+		"host_net":          "SumoLogic Compatibility",
 	}
 	interfaceLabel = "interface"
+	fieldLabel     = "field"
 )
 
 type MetricCollector struct {
@@ -85,6 +87,10 @@ func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, erro
 func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metric.CounterMetricState) []*dto.MetricFamily {
 	families := make([]*dto.MetricFamily, 0)
 	nowMS := time.Now().UnixMilli()
+	metricType := "host_net"
+	help := metricHelp[metricType]
+	sumo_family := newMetricFamily(metricType, help, dto.MetricType_COUNTER)
+	families = append(families, sumo_family)
 
 	for metricType, typeStats := range stats {
 		help := metricHelp[metricType]
@@ -107,6 +113,7 @@ func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metri
 
 		for netIF, ifValue := range typeStats {
 			counter := newCounterMetric(family, netIF, ifValue, nowMS)
+			_ = newSumoCounterMetric(sumo_family, metricType, netIF, ifValue, nowMS)
 			found, prevValue, prevTimestampMS := metricState.GetMetric(family, counter)
 			metricState.AddMetric(family, counter)
 			total += ifValue
@@ -148,7 +155,25 @@ func newMetricFamily(name, help string, metricType dto.MetricType) *dto.MetricFa
 
 func newCounterMetric(family *dto.MetricFamily, ifName string, value float64, timestampMS int64) *dto.Metric {
 	counter := &dto.Metric{
-		Label: []*dto.LabelPair{{Name: &interfaceLabel, Value: &ifName}},
+		Label: []*dto.LabelPair{
+			{Name: &interfaceLabel, Value: &ifName},
+			//{Name: &fieldLabel, Value: &fieldName},
+		},
+		Counter: &dto.Counter{
+			Value: &value,
+		},
+		TimestampMs: &timestampMS,
+	}
+	family.Metric = append(family.Metric, counter)
+
+	return counter
+}
+func newSumoCounterMetric(family *dto.MetricFamily, fieldName string, ifName string, value float64, timestampMS int64) *dto.Metric {
+	counter := &dto.Metric{
+		Label: []*dto.LabelPair{
+			{Name: &interfaceLabel, Value: &ifName},
+			{Name: &fieldLabel, Value: &fieldName},
+		},
 		Counter: &dto.Counter{
 			Value: &value,
 		},

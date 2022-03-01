@@ -42,13 +42,18 @@ func TestMetricCollector_CollectWithSum(t *testing.T) {
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 3)
-		assert.True(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 3)
+			assert.True(t, hasSumMetric(family))
+		}
 	}
 
 	// small sleep to ensure second call to Collect has different timestamp
@@ -60,15 +65,21 @@ func TestMetricCollector_CollectWithSum(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
 	assert.Contains(t, familyMap, "err_in")
 	assert.Contains(t, familyMap, "err_in_rate")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 3)
-		assert.True(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+			continue
+		} else {
+			assert.Len(t, family.Metric, 3)
+			assert.True(t, hasSumMetric(family))
+		}
 	}
 }
 
@@ -81,13 +92,18 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// small sleep to ensure second call to Collect has different timestamp
@@ -99,15 +115,20 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
 	assert.Contains(t, familyMap, "err_in")
 	assert.Contains(t, familyMap, "err_in_rate")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 }
 
@@ -120,13 +141,18 @@ func TestCollect_NoFile(t *testing.T) {
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// Second run with no file there will be no rates
@@ -135,7 +161,7 @@ func TestCollect_NoFile(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.NotContains(t, familyMap, "bytes_sent_rate")
@@ -152,13 +178,18 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// Second run with a small delay, should produce rate metrics
@@ -168,7 +199,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
@@ -182,7 +213,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.NotContains(t, familyMap, "bytes_sent_rate")
@@ -196,7 +227,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
