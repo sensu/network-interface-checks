@@ -71,7 +71,7 @@ Flags:
   -r, --max-rate-interval int        Maximum number of seconds since last measurement that triggers a rate calculation. 0 for no maximum. (default 60)
   -f, --state-file string            State file used for rate calculation. If empty no rate is calculated.
   -s, --sum                          Add additional measurement per metric w/ "interface=all" tag
-
+      --sumologic-compat             Add Sumo Logic compatible metrics with w/ "host_net" family
 
 Use "network-interface-checks [command] --help" for more information about a command.
 ```
@@ -84,6 +84,7 @@ Use "network-interface-checks [command] --help" for more information about a com
 | --exclude-interfaces | NETWORK_INTERFACE_CHECKS_EXCLUDE_INTERFACES |
 | --max-rate-interval  | NETWORK_INTERFACE_CHECKS_MAX_RATE_INTERVAL  |
 | --state-file         | NETWORK_INTERFACE_CHECKS_STATE_FILE         |
+| --sumologic-compat   | NETWORK_INTERFACE_CHECKS_SUMOLOGIC_COMPAT   |
 
 ## Configuration
 ### Asset registration

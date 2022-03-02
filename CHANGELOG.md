@@ -6,6 +6,8 @@ and this project adheres to [Semantic
 Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- Sumologic compat metrics enabled with --sumologic-compat flag
 
 ## [0.0.1] - 2000-01-01
 

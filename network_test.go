@@ -37,7 +37,7 @@ func GetNetStatsMock2(_ *selector) (NetStats, error) {
 func TestMetricCollector_CollectWithSum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 	// Sum, no rates
-	collector, err := NewCollector([]string{}, []string{}, true, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, true, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
@@ -60,7 +60,7 @@ func TestMetricCollector_CollectWithSum(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
-	collector, err = NewCollector([]string{}, []string{}, true, tmpFile, 60)
+	collector, err = NewCollector([]string{}, []string{}, true, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
@@ -87,7 +87,7 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// Sum, no rates
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
@@ -110,7 +110,7 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
@@ -136,7 +136,7 @@ func TestCollect_NoFile(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// No rates since it's first time writing to file
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
@@ -156,7 +156,7 @@ func TestCollect_NoFile(t *testing.T) {
 	}
 
 	// Second run with no file there will be no rates
-	collector, err = NewCollector([]string{}, []string{}, false, "", 60)
+	collector, err = NewCollector([]string{}, []string{}, false, true, "", 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
@@ -173,7 +173,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// First run to generate a state file
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 3)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 3)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
@@ -194,7 +194,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 
 	// Second run with a small delay, should produce rate metrics
 	time.Sleep(time.Second * 1)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 3)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 3)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
@@ -208,7 +208,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 
 	// Third run with a long delay, no rates should be produced
 	time.Sleep(time.Second * 3)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 1)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 1)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
@@ -222,7 +222,7 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 
 	// Fourth run with a long delay and 0 interval, should be produced
 	time.Sleep(time.Second * 3)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 0)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 0)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
