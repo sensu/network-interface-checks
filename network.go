@@ -29,13 +29,16 @@ var (
 		"drop_in":           "incoming packets dropped",
 		"drop_in_rate":      "incoming packets dropped per second",
 		"mtu":               "interface MTU configuration",
+		"host_net":          "SumoLogic Compatibility",
 	}
 	interfaceLabel = "interface"
+	fieldLabel     = "field"
 )
 
 type MetricCollector struct {
 	selector               *selector
 	sum                    bool
+	sumologic              bool
 	stateFile              string
 	maxRateIntervalSeconds int64
 }
@@ -43,13 +46,13 @@ type MetricCollector struct {
 // NetStats is the following: map[metric-name]map[interface-name]value
 type NetStats map[string]map[string]float64
 
-func NewCollector(includes, excludes []string, sum bool, stateFile string, maxRateIntervalSeconds int64) (*MetricCollector, error) {
+func NewCollector(includes, excludes []string, sum bool, sumologic bool, stateFile string, maxRateIntervalSeconds int64) (*MetricCollector, error) {
 	selector, err := NewDeviceSelector(includes, excludes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &MetricCollector{selector, sum, stateFile, maxRateIntervalSeconds}, nil
+	return &MetricCollector{selector, sum, sumologic, stateFile, maxRateIntervalSeconds}, nil
 }
 
 func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, error)) ([]*dto.MetricFamily, error) {
@@ -83,9 +86,15 @@ func (c *MetricCollector) Collect(netStatsGetter func(*selector) (NetStats, erro
 }
 
 func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metric.CounterMetricState) []*dto.MetricFamily {
+	var sumo_family *dto.MetricFamily
 	families := make([]*dto.MetricFamily, 0)
 	nowMS := time.Now().UnixMilli()
-
+	metricType := "host_net"
+	help := metricHelp[metricType]
+	if c.sumologic {
+		sumo_family = newMetricFamily(metricType, help, dto.MetricType_COUNTER)
+		families = append(families, sumo_family)
+	}
 	for metricType, typeStats := range stats {
 		help := metricHelp[metricType]
 		if help == "" {
@@ -107,6 +116,9 @@ func (c *MetricCollector) generatePromMetrics(stats NetStats, metricState *metri
 
 		for netIF, ifValue := range typeStats {
 			counter := newCounterMetric(family, netIF, ifValue, nowMS)
+			if c.sumologic {
+				_ = newSumoCounterMetric(sumo_family, metricType, netIF, ifValue, nowMS)
+			}
 			found, prevValue, prevTimestampMS := metricState.GetMetric(family, counter)
 			metricState.AddMetric(family, counter)
 			total += ifValue
@@ -148,7 +160,24 @@ func newMetricFamily(name, help string, metricType dto.MetricType) *dto.MetricFa
 
 func newCounterMetric(family *dto.MetricFamily, ifName string, value float64, timestampMS int64) *dto.Metric {
 	counter := &dto.Metric{
-		Label: []*dto.LabelPair{{Name: &interfaceLabel, Value: &ifName}},
+		Label: []*dto.LabelPair{
+			{Name: &interfaceLabel, Value: &ifName},
+		},
+		Counter: &dto.Counter{
+			Value: &value,
+		},
+		TimestampMs: &timestampMS,
+	}
+	family.Metric = append(family.Metric, counter)
+
+	return counter
+}
+func newSumoCounterMetric(family *dto.MetricFamily, fieldName string, ifName string, value float64, timestampMS int64) *dto.Metric {
+	counter := &dto.Metric{
+		Label: []*dto.LabelPair{
+			{Name: &interfaceLabel, Value: &ifName},
+			{Name: &fieldLabel, Value: &fieldName},
+		},
 		Counter: &dto.Counter{
 			Value: &value,
 		},

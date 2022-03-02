@@ -37,38 +37,49 @@ func GetNetStatsMock2(_ *selector) (NetStats, error) {
 func TestMetricCollector_CollectWithSum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 	// Sum, no rates
-	collector, err := NewCollector([]string{}, []string{}, true, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, true, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 3)
-		assert.True(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 3)
+			assert.True(t, hasSumMetric(family))
+		}
 	}
 
 	// small sleep to ensure second call to Collect has different timestamp
 	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
-	collector, err = NewCollector([]string{}, []string{}, true, tmpFile, 60)
+	collector, err = NewCollector([]string{}, []string{}, true, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
 	assert.Contains(t, familyMap, "err_in")
 	assert.Contains(t, familyMap, "err_in_rate")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 3)
-		assert.True(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+			continue
+		} else {
+			assert.Len(t, family.Metric, 3)
+			assert.True(t, hasSumMetric(family))
+		}
 	}
 }
 
@@ -76,38 +87,48 @@ func TestMetricCollector_CollectNoSum(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// Sum, no rates
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// small sleep to ensure second call to Collect has different timestamp
 	time.Sleep(10 * time.Millisecond)
 
 	// Second run there will be sum and rates
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
 	assert.Contains(t, familyMap, "err_in")
 	assert.Contains(t, familyMap, "err_in_rate")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 }
 
@@ -115,27 +136,32 @@ func TestCollect_NoFile(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// No rates since it's first time writing to file
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 60)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 60)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// Second run with no file there will be no rates
-	collector, err = NewCollector([]string{}, []string{}, false, "", 60)
+	collector, err = NewCollector([]string{}, []string{}, false, true, "", 60)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.NotContains(t, familyMap, "bytes_sent_rate")
@@ -147,28 +173,33 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), uuid.New().String()+".json")
 
 	// First run to generate a state file
-	collector, err := NewCollector([]string{}, []string{}, false, tmpFile, 3)
+	collector, err := NewCollector([]string{}, []string{}, false, true, tmpFile, 3)
 	assert.NoError(t, err)
 	families, err := collector.Collect(GetNetStatsMock1)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap := familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "err_in")
 	for _, family := range families {
-		assert.Len(t, family.Metric, 2)
-		assert.False(t, hasSumMetric(family))
+		if family.GetName() == "host_net" {
+			assert.Len(t, family.Metric, 4)
+			assert.False(t, hasSumMetric(family))
+		} else {
+			assert.Len(t, family.Metric, 2)
+			assert.False(t, hasSumMetric(family))
+		}
 	}
 
 	// Second run with a small delay, should produce rate metrics
 	time.Sleep(time.Second * 1)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 3)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 3)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")
@@ -177,12 +208,12 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 
 	// Third run with a long delay, no rates should be produced
 	time.Sleep(time.Second * 3)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 1)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 1)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 2)
+	assert.Len(t, families, 3)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.NotContains(t, familyMap, "bytes_sent_rate")
@@ -191,12 +222,12 @@ func TestCollect_MaxRateInterval(t *testing.T) {
 
 	// Fourth run with a long delay and 0 interval, should be produced
 	time.Sleep(time.Second * 3)
-	collector, err = NewCollector([]string{}, []string{}, false, tmpFile, 0)
+	collector, err = NewCollector([]string{}, []string{}, false, true, tmpFile, 0)
 	assert.NoError(t, err)
 	families, err = collector.Collect(GetNetStatsMock2)
 	assert.NoError(t, err)
 	assert.NotNil(t, families)
-	assert.Len(t, families, 4)
+	assert.Len(t, families, 5)
 	familyMap = familiesByName(families)
 	assert.Contains(t, familyMap, "bytes_sent")
 	assert.Contains(t, familyMap, "bytes_sent_rate")

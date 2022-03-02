@@ -3,19 +3,21 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"os"
+	"strings"
+
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	v2 "github.com/sensu/sensu-go/api/core/v2"
 	"github.com/sensu/sensu-plugin-sdk/sensu"
-	"log"
-	"os"
-	"strings"
 )
 
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
 	Sum                    bool
+	SumoLogicCompat        bool
 	IncludeInterfaces      []string
 	ExcludeInterfaces      []string
 	StateFile              string
@@ -37,6 +39,14 @@ var (
 
 	options = []*sensu.PluginConfigOption{
 		{
+			Path:      "sum",
+			Env:       "NETWORK_INTERFACE_CHECKS_SUMOLOGIC_COMPAT",
+			Argument:  "sumologic-compat",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Add Sumo Logic compatible metrics with w/ \"host_net\" family",
+			Value:     &plugin.SumoLogicCompat,
+		}, {
 			Path:      "sum",
 			Env:       "NETWORK_INTERFACE_CHECKS_SUM",
 			Argument:  "sum",
@@ -121,7 +131,7 @@ func checkArgs(_ *v2.Event) (int, error) {
 }
 
 func collectMetrics() ([]*dto.MetricFamily, error) {
-	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, plugin.Sum, plugin.StateFile,
+	collector, err := NewCollector(plugin.IncludeInterfaces, plugin.ExcludeInterfaces, plugin.Sum, plugin.SumoLogicCompat, plugin.StateFile,
 		plugin.MaxRateIntervalSeconds)
 	if err != nil {
 		return nil, err
